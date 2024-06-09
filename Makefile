@@ -1,9 +1,15 @@
+SRC = ./src
+BUILD = ./build
 EXEC := collisions
 CC := g++
-
+CFLAGS := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 build:
-	$(CC) $(EXEC).cpp -o $(EXEC).out -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+	$(CC) $(SRC)/$(EXEC).cpp -o $(BUILD)/$(EXEC).out  $(CFLAGS)
 run:
-	./$(EXEC).out
+	$(BUILD)/$(EXEC).out
+clean:
+	rm $(BUILD)/*
 exec: build run
+
+
 
