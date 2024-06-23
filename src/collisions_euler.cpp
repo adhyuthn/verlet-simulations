@@ -1,68 +1,36 @@
-#pragma once
-
 #include <raylib.h>
 #include <raymath.h>
 #include <vector>
-#include <ctime>
-#include <random>
+#include "objects.hpp"
+#include "colors.hpp"
 
-#define randMax(a) (rand() % a)
+inline int randMax(int a) {
+    return rand() % a;
+}
 
-class CircleEuler {
-    public:
-        float radius;
-        Vector2 position;
-        Vector2 velocity;
-        Color color;
-        float restitution;
+inline int randDir() {
+    return rand() % 2 == 0 ? 1 : -1;
+}
 
-        CircleEuler(float radius, Vector2 x, Vector2 v, Color color, float restitution):
-            radius(radius),
-            position(x),
-            velocity(v),
-            color(color),
-            restitution(restitution)
-        {}
-
-        void draw() {
-            DrawCircle(position.x, position.y, radius, color);
+void solveCollisions(std::vector<CircleEuler> &circles) {
+    for (auto &circle_i : circles) {
+        for (auto &circle_j : circles) {
+            if (&circle_i != &circle_j) {
+                float sum_radius = circle_i.radius + circle_j.radius;
+                Vector2 axis = Vector2Subtract(circle_i.position, circle_j.position);
+                float dist = Vector2Length(axis);
+                if (dist < sum_radius) {
+                    float overlap = (sum_radius - dist)/2;
+                    Vector2 normal = Vector2Normalize(axis);
+                    circle_i.position = Vector2Add(circle_i.position, Vector2Scale(axis, overlap));
+                }
+            } 
         }
-
-        void updatePosition(Vector2 acceleration, float dt) {
-            velocity.x += acceleration.x * dt;
-            velocity.y += acceleration.y * dt;
-            position.x += velocity.x * dt;
-            position.y += velocity.y * dt;
-        }
-};
-
-class BoundBox {
-    public:
-        float width;
-        float height;
-        int topLeft_x;
-        int topLeft_y;
-        int bottomLeft_x;
-        int bottomLeft_y;
-        int bottomRight_x;
-        int topRight_x;
-
-        BoundBox(float width, float height, const int center_w, const int center_h) : 
-        width(width),  
-        height(height)
-        {
-            topLeft_y = center_h - height / 2;
-            topLeft_x = center_w - width / 2;
-            bottomLeft_x = topLeft_x;
-            bottomLeft_y = center_h + height / 2; 
-            bottomRight_x = bottomLeft_x + width;
-            topRight_x = bottomRight_x;
-        }
-};
+    }
+}
 
 int main() {
-    srand(time(NULL));
-
+    
     const int screenWidth = 1300;
     const int screenHeight = 1000;
     const int Xcenter = screenWidth/2;
@@ -70,6 +38,7 @@ int main() {
     const int FPS = 60;
     const int MAX_OBJECTS = 10;
     const int newObjectFPS = 20;
+    const int sub_step = 1;
     const float Bbox_width = 900;
     const float Bbox_height = 900;
     const float Bbox_x = screenWidth/2 - 150;
@@ -78,27 +47,30 @@ int main() {
     InitWindow(screenWidth, screenHeight, "ShittyGame");
     SetTargetFPS(FPS);
 
-    Vector2 acceleration = {0, 0};
     float acceleration_ang = 0.0f; 
-    Texture2D arrow = LoadTexture("./resources/arrow.png");
-    Texture2D arrow_zero = LoadTexture("./resources/arrow-zero.png");
-    
-    float arrowX = arrow.width/2;
-    float arrowY = arrow.height/2;
-    BoundBox bbox(Bbox_width, Bbox_height, Bbox_x, Bbox_y);
-    std::vector<CircleEuler> circles;
     int frameCounter = 0;
     bool pour = true;
+    Vector2 acceleration = {0, 0};
+    Texture2D arrow = LoadTexture("../resources/arrow.png");
+    Texture2D arrow_zero = LoadTexture("../resources/arrow-zero.png");
+    Vector2 mousePos = (Vector2){0.0f, 0.0f};
+    
+    BoundBox bbox(Bbox_width, Bbox_height, Bbox_x, Bbox_y);
+    std::vector<CircleEuler> circles;
 
     while (!WindowShouldClose()) {
         frameCounter++;
+        mousePos = GetMousePosition();
+        
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)){
-            circles.push_back(CircleEuler(10 + randMax(10), 
-                                    GetMousePosition(), 
-                                    (Vector2){0, 0},
-                                    (Color){randMax(90)+(120), randMax(90)+(120),randMax(90)+(120), 255},
-                                    0.8 + randMax(2)/10.0));
-            frameCounter = 0;
+            for (int i = 0; i <= 10; i++){
+                circles.push_back(CircleEuler(5 + randMax(10), 
+                                        mousePos, 
+                                        (Vector2){ randDir()  * randMax(400),  randDir() * randMax(400)},
+                                        (Color){randMax(90)+(120), randMax(90)+(120),randMax(90)+(120), 255},
+                                        0.8 + randMax(2)/10.0));
+                frameCounter = 0;
+            }
         }
     
         if (IsKeyDown(KEY_A)) {acceleration.x--; acceleration_ang = - RAD2DEG * Vector2Angle(acceleration, (Vector2){1.0f, 0.0f});}
@@ -138,44 +110,43 @@ int main() {
         BeginDrawing();
 
             ClearBackground((Color){26, 20, 37, 255});
-            for (auto circle_i : circles) {
-                circle_i.draw();
-            }
+            // for (int i = 0; i <= sub_step; i++) solveCollisions(circles);
+            for (auto circle_i : circles) {circle_i.draw();}
 
             DrawRectangleLines(bbox.topLeft_x, bbox.topLeft_y, bbox.width, bbox.height, (Color){157, 113, 240, 255});
-
-            DrawRectangle(bbox.topRight_x + 25, bbox.topLeft_y , 300, bbox.height, (Color){157, 113, 240, 255});
-        
-            DrawText("Collision with boundaries only", bbox.topLeft_x, 15, 25, (Color){107, 255, 144, 255});
-            DrawText(TextFormat("Objects:  %d", circles.size()),                   bbox.topRight_x + 40,  60, 30, (Color){26, 20, 37, 255});
-            DrawText(TextFormat("FPS: %d", GetFPS()),                              bbox.topRight_x + 40,  90, 30, (Color){26, 20, 37, 255});
-            DrawText(TextFormat("g: {%.2f, %.2f}", acceleration.x, acceleration.y),bbox.topRight_x + 40, 120, 30, (Color){26, 20, 37, 255});
-            DrawText("W: Increase g.y", bbox.topRight_x + 40,  200 - 20, 30, (Color){26, 20, 37, 255});
-            DrawText("A: Decrease g.x", bbox.topRight_x + 40,  290 - 20, 30, (Color){26, 20, 37, 255});
-            DrawText("S: Decrease g.y", bbox.topRight_x + 40,  230 - 20, 30, (Color){26, 20, 37, 255});
-            DrawText("D: Increase g.x", bbox.topRight_x + 40,  260 - 20, 30, (Color){26, 20, 37, 255});
+            
+            DrawRectangleLines(bbox.topRight_x + 25, bbox.topLeft_y , 300, bbox.height, MOCHA_LIGHT);
+            DrawText("Collision with boundaries only", bbox.topLeft_x, 15, 25, MOCHA_GREEN);
+            DrawText(TextFormat("Objects:  %d", circles.size()),                   bbox.topRight_x + 40,  60, 30, MOCHA_GREEN);
+            DrawText(TextFormat("FPS: %d", GetFPS()),                              bbox.topRight_x + 40,  90, 30, MOCHA_GREEN);
+            DrawText(TextFormat("g: {%.2f, %.2f}", acceleration.x, acceleration.y),bbox.topRight_x + 40, 120, 30, MOCHA_GREEN);
+            DrawText("W: Increase g.y", bbox.topRight_x + 40,  200 - 20, 30, MOCHA_LIGHT);
+            DrawText("S: Decrease g.y", bbox.topRight_x + 40,  230 - 20, 30, MOCHA_LIGHT);
+            DrawText("D: Increase g.x", bbox.topRight_x + 40,  260 - 20, 30, MOCHA_LIGHT);
+            DrawText("A: Decrease g.x", bbox.topRight_x + 40,  290 - 20, 30, MOCHA_LIGHT);
+            DrawText("R: Reset g",      bbox.topRight_x + 40,  320 - 20, 30, MOCHA_LIGHT);
+            DrawText("Space: Snap",         bbox.topRight_x + 40,  350 - 20, 30, MOCHA_LIGHT);
+            DrawText(TextFormat("x: %0.2f y: %0.2f ", mousePos.x, mousePos.y), bbox.bottomRight_x + 40, bbox.bottomLeft_y - 40, 30, MOCHA_GREEN);
             if (Vector2Equals(acceleration, (Vector2){0})){
                 DrawTexturePro( arrow_zero, 
                                 (Rectangle){0.0f, 0.0f, arrow.width, arrow.height}, 
-                                (Rectangle){bbox.topRight_x + 175, 500, arrow.width*2, arrow.height*2},
-                                (Vector2){arrowX*2, arrowY*2}, 
+                                (Rectangle){bbox.topRight_x + 175, 600, arrow.width/4, arrow.height/4},
+                                (Vector2){arrow.width/8, arrow.width/8}, 
                                 0, 
-                                WHITE);
+                                WHITE );
             }
             else {
                 DrawTexturePro( arrow, 
                                 (Rectangle){0.0f, 0.0f, arrow.width, arrow.height}, 
-                                (Rectangle){bbox.topRight_x + 175, 500, arrow.width*2, arrow.height*2},
-                                (Vector2){arrowX*2, arrowY*2}, 
+                                (Rectangle){bbox.topRight_x + 175, 600, arrow.width/4, arrow.height/4},
+                                (Vector2){arrow.width/8, arrow.width/8}, 
                                 acceleration_ang, 
-                                WHITE);
+                                WHITE );
             }
+            EndDrawing();
             
-
-        EndDrawing();
     }
     UnloadTexture(arrow); 
     CloseWindow();
-
     return 0;
 }

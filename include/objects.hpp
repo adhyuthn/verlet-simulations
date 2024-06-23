@@ -1,6 +1,7 @@
 #include <raylib.h>
 
-class CircleEuler {
+
+class Circle {
     public:
         float radius;
         Vector2 position;
@@ -8,7 +9,7 @@ class CircleEuler {
         Color color;
         float restitution;
 
-        CircleEuler(float radius, Vector2 x, Vector2 v, Color color, float restitution):
+        Circle(float radius, Vector2 x, Vector2 v, Color color, float restitution):
             radius(radius),
             position(x),
             velocity(v),
@@ -16,16 +17,29 @@ class CircleEuler {
             restitution(restitution)
         {}
 
-        void draw() {-
+        void draw() {
             DrawCircle(position.x, position.y, radius, color);
         }
+};
 
+class CircleEuler : public Circle {
+    public:
+        using Circle::Circle;
         void updatePosition(Vector2 acceleration, float dt) {
             velocity.x += acceleration.x * dt;
             velocity.y += acceleration.y * dt;
             position.x += velocity.x * dt;
             position.y += velocity.y * dt;
-        }
+    }
+};
+
+class CircleVerlet : public Circle {
+    public:
+        void updatePosition(Vector2 acceleration, float dt) { ; }
+            
+        
+            
+
 };
 
 class BoundBox {
